@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Fencing Duel v3</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Roboto', sans-serif;
+            overflow: hidden;
+            color: white;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border: 4px solid #333;
+        }
+
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #16213e, #0f3460);
+        }
+
+        /* UI Overlays */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HUD */
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            width: 100%;
+            align-items: flex-start; /* Align to top */
+        }
+
+        .player-hud-group {
+            width: 40%;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .player-name {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .p1-text { color: #4cc9f0; text-align: left; }
+        .p2-text { color: #f72585; text-align: right; }
+
+        .health-bar-container {
+            position: relative;
+            width: 100%;
+            height: 30px;
+            background-color: #333;
+            border: 2px solid #fff;
+            transform: skewX(-15deg);
+        }
+
+        .health-fill {
+            height: 100%;
+            background-color: #e94560;
+            width: 100%;
+            transition: width 0.2s ease-out;
+        }
+
+        .p1-fill { background: #4cc9f0; } /* Blue */
+        .p2-fill { background: #f72585; } /* Pink */
+
+        .timer {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 24px;
+            background: #fff;
+            color: #1a1a2e;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-top: 15px; /* Align with bars better */
+        }
+
+        /* Menus */
+        .menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.92);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            backdrop-filter: blur(5px);
+            z-index: 10;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 40px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, #4cc9f0, #f72585);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Input Fields */
+        .input-group {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .name-input {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #555;
+            padding: 10px;
+            color: white;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            text-align: center;
+            outline: none;
+            width: 150px;
+        }
+        .name-input::placeholder { color: #aaa; }
+        .name-input:focus { border-color: white; background: rgba(255,255,255,0.2); }
+
+        .btn {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+            padding: 15px 40px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: 'Press Start 2P', cursive;
+            transition: 0.2s;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            background: white;
+            color: #1a1a2e;
+            transform: scale(1.05);
+        }
+
+        /* Controls Grid Fixing */
+        .controls-container {
+            margin-top: 30px;
+            display: flex;
+            gap: 60px;
+            text-align: left;
+        }
+
+        .control-column h3 {
+            margin-bottom: 15px;
+            text-align: center;
+            font-family: 'Press Start 2P';
+            font-size: 12px;
+        }
+
+        .key-row {
+            display: grid;
+            grid-template-columns: 80px 1fr; /* Fixed width for keys, rest for action */
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        .key { 
+            color: #4cc9f0; 
+            font-weight: bold; 
+            border: 1px solid #4cc9f0; 
+            padding: 2px 4px; 
+            border-radius: 4px; 
+            font-size: 12px;
+            text-align: center;
+            display: inline-block;
+            width: fit-content;
+        }
+        
+        .key-p2 { 
+            color: #f72585; 
+            font-weight: bold; 
+            border: 1px solid #f72585; 
+            padding: 2px 4px; 
+            border-radius: 4px; 
+            font-size: 12px;
+            text-align: center;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        #result-text {
+            font-size: 40px;
+            margin-bottom: 20px;
+            font-family: 'Press Start 2P', cursive;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="canvas"></canvas>
+        
+        <div class="ui-layer">
+            <div class="hud">
+                <div class="player-hud-group">
+                    <div class="player-name p1-text" id="p1-name-display">Player 1</div>
+                    <div class="health-bar-container">
+                        <div class="health-fill p1-fill" id="p1-health"></div>
+                    </div>
+                </div>
+
+                <div class="timer" id="timer">60</div>
+
+                <div class="player-hud-group">
+                    <div class="player-name p2-text" id="p2-name-display">Player 2</div>
+                    <div class="health-bar-container">
+                        <div class="health-fill p2-fill" id="p2-health" style="float: right;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="start-menu" class="menu">
+            <h1>Neon Fencing</h1>
+            <p style="margin-bottom: 20px; color: #ccc;">En Garde!</p>
+            
+            <div class="input-group">
+                <input type="text" id="p1-input" class="name-input" placeholder="Player 1 Name" maxlength="10">
+                <input type="text" id="p2-input" class="name-input" placeholder="Player 2 Name" maxlength="10">
+            </div>
+
+            <button class="btn" onclick="startGame(false)">1 Player (vs CPU)</button>
+            <button class="btn" onclick="startGame(true)">2 Players</button>
+
+            <div class="controls-container">
+                <div class="control-column">
+                    <h3 style="color:#4cc9f0;">PLAYER 1</h3>
+                    <div class="key-row"><span class="key">A / D</span> <span>Move</span></div>
+                    <div class="key-row"><span class="key">W</span> <span>Jump</span></div>
+                    <div class="key-row"><span class="key">S</span> <span>Duck</span></div>
+                    <div class="key-row"><span class="key">Z</span> <span>Attack</span></div>
+                    <div class="key-row"><span class="key">X</span> <span>Shield</span></div>
+                </div>
+                <div class="control-column">
+                    <h3 style="color:#f72585;">PLAYER 2</h3>
+                    <div class="key-row"><span class="key-p2">Arrows</span> <span>Move</span></div>
+                    <div class="key-row"><span class="key-p2">Up</span> <span>Jump</span></div>
+                    <div class="key-row"><span class="key-p2">Down</span> <span>Duck</span></div>
+                    <div class="key-row"><span class="key-p2">.</span> <span>Attack</span></div>
+                    <div class="key-row"><span class="key-p2">/</span> <span>Shield</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="game-over-menu" class="menu hidden">
+            <h1 id="result-text">Winner</h1>
+            <button class="btn" onclick="showMainMenu()">Main Menu</button>
+            <button class="btn" onclick="restartGame()">Rematch</button>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Canvas Size
+    canvas.width = 1024;
+    canvas.height = 576;
+
+    // Game Constants
+    const GRAVITY = 0.7;
+    const GROUND_HEIGHT = 90;
+    const GAME_DURATION = 60;
+    const ATTACK_RANGE = 180; 
+
+    // Game State
+    let animationId;
+    let isGameRunning = false;
+    let isTwoPlayer = false;
+    let timer = GAME_DURATION;
+    let timerInterval;
+
+    // Player Names
+    let p1Name = "Player 1";
+    let p2Name = "Player 2";
+
+    // Keys State
+    const keys = {
+        a: { pressed: false },
+        d: { pressed: false },
+        w: { pressed: false },
+        s: { pressed: false },
+        x: { pressed: false }, 
+        z: { pressed: false }, 
+        
+        ArrowLeft: { pressed: false },
+        ArrowRight: { pressed: false },
+        ArrowUp: { pressed: false },
+        ArrowDown: { pressed: false },
+        Slash: { pressed: false }
+    };
+
+    // --- Classes ---
+
+    class Sprite {
+        constructor({ position, velocity, color, offset, isPlayer1 }) {
+            this.position = position;
+            this.velocity = velocity;
+            this.width = 50;
+            this.height = 150;
+            this.lastKey = '';
+            
+            // Combat Stats
+            this.color = color;
+            this.isPlayer1 = isPlayer1;
+            this.attackBox = {
+                position: { x: this.position.x, y: this.position.y },
+                offset: offset,
+                width: ATTACK_RANGE, 
+                height: 50
+            };
+            this.isAttacking = false;
+            this.isShielding = false;
+            this.isDucking = false;
+            this.health = 100;
+            this.dead = false;
+            
+            // Animation properties
+            this.opacity = 1;
+            this.facingRight = isPlayer1; 
+        }
+
+        draw() {
+            ctx.save();
+            ctx.globalAlpha = this.opacity;
+
+            // 0. Draw "Leash" (Fencing Reel Cable)
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            let backX = this.facingRight ? this.position.x : this.position.x + this.width;
+            let backY = this.position.y + this.height / 2;
+            let wallX = this.isPlayer1 ? 0 : canvas.width;
+            ctx.moveTo(backX, backY);
+            ctx.quadraticCurveTo((backX + wallX) / 2, backY + 100, wallX, canvas.height - GROUND_HEIGHT);
+            ctx.stroke();
+
+            // 1. Draw Shield
+            if (this.isShielding) {
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                const shieldDir = this.facingRight ? 1 : -1;
+                const shieldX = this.position.x + (this.width/2) + (40 * shieldDir);
+                ctx.arc(shieldX, this.position.y + this.height/2, 45, -Math.PI/4, Math.PI/4, !this.facingRight);
+                ctx.stroke();
+                
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "white";
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+
+            // 2. Draw Body
+            ctx.fillStyle = this.color;
+            let currentHeight = this.isDucking ? this.height * 0.6 : this.height;
+            let currentY = this.isDucking ? this.position.y + (this.height * 0.4) : this.position.y;
+            ctx.fillRect(this.position.x, currentY, this.width, currentHeight);
+
+            // 3. Draw Sword 
+            ctx.fillStyle = '#e0e0e0'; 
+            const swordLen = 130; 
+            const dir = this.facingRight ? 1 : -1;
+            
+            let swordX = this.position.x + (this.width/2);
+            let swordY = currentY + (currentHeight/3);
+
+            if (this.isAttacking) {
+                swordX += 60 * dir;
+                ctx.fillStyle = '#fff'; 
+            }
+
+            ctx.fillRect(swordX, swordY, swordLen * dir, 3);
+            
+            ctx.beginPath();
+            ctx.fillStyle = this.color;
+            ctx.arc(swordX, swordY + 1.5, 10, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 4. Draw Eyes
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            const eyeOffset = this.facingRight ? 12 : -12;
+            if (!this.isDucking) {
+                ctx.fillRect(this.position.x + (this.width/2) + eyeOffset, this.position.y + 20, 15, 4);
+            }
+
+            ctx.restore();
+        }
+
+        update() {
+            this.draw();
+            
+            if (this.dead) return;
+
+            // Attack Box Position Update
+            this.attackBox.position.x = this.position.x + this.attackBox.offset.x;
+            this.attackBox.position.y = this.position.y + this.attackBox.offset.y;
+
+            // Facing Direction Logic
+            if (this.velocity.x > 0) this.facingRight = true;
+            if (this.velocity.x < 0) this.facingRight = false;
+            
+            if (this.facingRight) {
+                 this.attackBox.offset.x = 0; 
+            } else {
+                 this.attackBox.offset.x = -130; 
+            }
+
+            // Physics Position
+            this.position.x += this.velocity.x;
+            this.position.y += this.velocity.y;
+
+            // Gravity
+            if (this.position.y + this.height + this.velocity.y >= canvas.height - 90) {
+                this.velocity.y = 0;
+                this.position.y = canvas.height - 90 - this.height;
+            } else {
+                this.velocity.y += GRAVITY;
+            }
+
+            // Wall Boundaries
+            if (this.position.x < 0) this.position.x = 0;
+            if (this.position.x + this.width > canvas.width) this.position.x = canvas.width - this.width;
+        }
+
+        attack() {
+            if (this.isShielding || this.dead) return;
+            
+            this.isAttacking = true;
+            setTimeout(() => {
+                this.isAttacking = false;
+            }, 150); 
+        }
+
+        takeHit() {
+            if (this.isShielding) {
+                createParticles(this.position.x + this.width/2, this.position.y + this.height/2, 'white', 8);
+                return; 
+            }
+
+            this.health -= 10;
+            createParticles(this.position.x + this.width/2, this.position.y + this.height/2, this.color, 15);
+
+            if (this.health <= 0) {
+                this.health = 0;
+                this.dead = true;
+            }
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color, velocity) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            this.velocity = velocity;
+            this.alpha = 1;
+        }
+        draw() {
+            ctx.save();
+            ctx.globalAlpha = this.alpha;
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, 4, 4);
+            ctx.restore();
+        }
+        update() {
+            this.draw();
+            this.x += this.velocity.x;
+            this.y += this.velocity.y;
+            this.alpha -= 0.05;
+        }
+    }
+
+    // --- Global Variables ---
+    let player, enemy;
+    let particles = [];
+
+    // --- Initialization ---
+    function init() {
+        player = new Sprite({
+            position: { x: 150, y: 0 },
+            velocity: { x: 0, y: 0 },
+            color: '#4cc9f0',
+            offset: { x: 0, y: 50 },
+            isPlayer1: true
+        });
+
+        enemy = new Sprite({
+            position: { x: 850, y: 0 },
+            velocity: { x: 0, y: 0 },
+            color: '#f72585',
+            offset: { x: -50, y: 50 },
+            isPlayer1: false
+        });
+        
+        enemy.facingRight = false; 
+
+        particles = [];
+        timer = GAME_DURATION;
+        document.getElementById('p1-health').style.width = '100%';
+        document.getElementById('p2-health').style.width = '100%';
+        document.getElementById('timer').innerText = timer;
+    }
+
+    function createParticles(x, y, color, amount) {
+        for (let i = 0; i < amount; i++) {
+            particles.push(new Particle(
+                x, y, color, 
+                {
+                    x: (Math.random() - 0.5) * 8, 
+                    y: (Math.random() - 0.5) * 8
+                }
+            ));
+        }
+    }
+
+    // --- Collision Detection ---
+    function rectangularCollision({ rectangle1, rectangle2 }) {
+        return (
+            rectangle1.attackBox.position.x + rectangle1.attackBox.width >= rectangle2.position.x &&
+            rectangle1.attackBox.position.x <= rectangle2.position.x + rectangle2.width &&
+            rectangle1.attackBox.position.y + rectangle1.attackBox.height >= rectangle2.position.y &&
+            rectangle1.attackBox.position.y <= rectangle2.position.y + rectangle2.height
+        );
+    }
+
+    // --- Game Logic Loop ---
+    function animate() {
+        if (!isGameRunning) return;
+        
+        animationId = window.requestAnimationFrame(animate);
+        
+        // Background Clear
+        ctx.fillStyle = 'rgba(26, 26, 46, 0.35)'; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Floor
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, canvas.height - 90, canvas.width, 90);
+
+        player.update();
+        enemy.update();
+
+        // Physics Logic (Movement)
+        player.velocity.x = 0;
+        enemy.velocity.x = 0;
+
+        // Player 1 Movement
+        if (!player.dead) {
+            if (keys.a.pressed && player.lastKey === 'a') player.velocity.x = -5;
+            else if (keys.d.pressed && player.lastKey === 'd') player.velocity.x = 5;
+            
+            if (player.isShielding) player.velocity.x *= 0.3;
+            if (player.isDucking) player.velocity.x = 0;
+        }
+
+        // Player 2 Movement
+        if (!enemy.dead) {
+            if (isTwoPlayer) {
+                if (keys.ArrowLeft.pressed && enemy.lastKey === 'ArrowLeft') enemy.velocity.x = -5;
+                else if (keys.ArrowRight.pressed && enemy.lastKey === 'ArrowRight') enemy.velocity.x = 5;
+
+                if (enemy.isShielding) enemy.velocity.x *= 0.3;
+                if (enemy.isDucking) enemy.velocity.x = 0;
+            } else {
+                cpuAI(enemy, player);
+            }
+        }
+
+        // Hit Detection P1 -> P2
+        if (
+            rectangularCollision({ rectangle1: player, rectangle2: enemy }) &&
+            player.isAttacking
+        ) {
+            player.isAttacking = false; 
+            enemy.takeHit();
+            document.getElementById('p2-health').style.width = enemy.health + '%';
+        }
+
+        // Hit Detection P2 -> P1
+        if (
+            rectangularCollision({ rectangle1: enemy, rectangle2: player }) &&
+            enemy.isAttacking
+        ) {
+            enemy.isAttacking = false;
+            player.takeHit();
+            document.getElementById('p1-health').style.width = player.health + '%';
+        }
+
+        particles.forEach((particle, index) => {
+            if (particle.alpha <= 0) {
+                particles.splice(index, 1);
+            } else {
+                particle.update();
+            }
+        });
+
+        if (enemy.health <= 0 || player.health <= 0) {
+            determineWinner({ player, enemy, timerId: timerInterval });
+        }
+    }
+
+    let aiCooldown = 0;
+    function cpuAI(ai, target) {
+        const dx = target.position.x - ai.position.x;
+        const distance = Math.abs(dx);
+        ai.facingRight = dx > 0;
+        aiCooldown++;
+
+        if (target.isAttacking && distance < 250 && Math.random() > 0.4) {
+            ai.isShielding = true;
+        } else {
+            ai.isShielding = false;
+        }
+
+        if (!ai.isShielding) {
+            if (distance > 150) {
+                ai.velocity.x = dx > 0 ? 3 : -3;
+                ai.lastKey = dx > 0 ? 'ArrowRight' : 'ArrowLeft'; 
+            } else {
+                if (aiCooldown > 50 && Math.random() > 0.3) {
+                    ai.attack();
+                    aiCooldown = 0;
+                }
+            }
+        }
+    }
+
+    function startGame(twoPlayerMode) {
+        // 1. Get Names from inputs
+        let name1Input = document.getElementById('p1-input').value.trim();
+        let name2Input = document.getElementById('p2-input').value.trim();
+
+        // 2. Set Names variables
+        p1Name = name1Input || "Player 1";
+        
+        if (twoPlayerMode) {
+            p2Name = name2Input || "Player 2";
+        } else {
+            p2Name = "CPU";
+        }
+
+        // 3. Update HUD Displays
+        document.getElementById('p1-name-display').innerText = p1Name;
+        document.getElementById('p2-name-display').innerText = p2Name;
+
+        // 4. Logic
+        isTwoPlayer = twoPlayerMode;
+        document.getElementById('start-menu').classList.add('hidden');
+        document.getElementById('game-over-menu').classList.add('hidden');
+        init();
+        isGameRunning = true;
+        animate();
+        decreaseTimer();
+    }
+
+    function decreaseTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            if (timer > 0 && isGameRunning) {
+                timer--;
+                document.getElementById('timer').innerText = timer;
+            } else if (timer === 0) {
+                determineWinner({ player, enemy, timerId: timerInterval });
+            }
+        }, 1000);
+    }
+
+    function determineWinner({ player, enemy, timerId }) {
+        clearInterval(timerId);
+        isGameRunning = false;
+        document.getElementById('game-over-menu').classList.remove('hidden');
+        
+        const resultText = document.getElementById('result-text');
+        
+        if (player.health === enemy.health) {
+            resultText.innerText = 'Tie Game';
+            resultText.style.color = '#fff';
+        } else if (player.health > enemy.health) {
+            resultText.innerText = p1Name + ' Wins';
+            resultText.style.color = '#4cc9f0';
+        } else {
+            resultText.innerText = p2Name + ' Wins';
+            resultText.style.color = '#f72585';
+        }
+    }
+
+    function showMainMenu() {
+        document.getElementById('game-over-menu').classList.add('hidden');
+        document.getElementById('start-menu').classList.remove('hidden');
+    }
+
+    function restartGame() {
+        startGame(isTwoPlayer);
+    }
+
+    // --- Input Handling ---
+    window.addEventListener('keydown', (event) => {
+        // Allow typing in inputs if menu is open
+        if (!isGameRunning) return;
+
+        if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ', '/'].indexOf(event.key) > -1) {
+            event.preventDefault();
+        }
+
+        const key = event.key.toLowerCase();
+
+        // P1
+        if (!player.dead) {
+            switch (key) {
+                case 'd': keys.d.pressed = true; player.lastKey = 'd'; break;
+                case 'a': keys.a.pressed = true; player.lastKey = 'a'; break;
+                case 'w': if (player.velocity.y === 0) player.velocity.y = -15; break;
+                case 's': player.isDucking = true; break;
+                case 'z': player.attack(); break;
+                case 'x': player.isShielding = true; break;
+            }
+        }
+
+        // P2
+        if (!enemy.dead && isTwoPlayer) {
+            switch (event.key) {
+                case 'ArrowRight': keys.ArrowRight.pressed = true; enemy.lastKey = 'ArrowRight'; break;
+                case 'ArrowLeft': keys.ArrowLeft.pressed = true; enemy.lastKey = 'ArrowLeft'; break;
+                case 'ArrowUp': if (enemy.velocity.y === 0) enemy.velocity.y = -15; break;
+                case 'ArrowDown': enemy.isDucking = true; break;
+                case '.': enemy.attack(); break;
+                case '/': enemy.isShielding = true; break;
+            }
+        }
+    });
+
+    window.addEventListener('keyup', (event) => {
+        const key = event.key.toLowerCase();
+        switch (key) {
+            case 'd': keys.d.pressed = false; break;
+            case 'a': keys.a.pressed = false; break;
+            case 's': player.isDucking = false; break;
+            case 'x': player.isShielding = false; break;
+        }
+        switch (event.key) {
+            case 'ArrowRight': keys.ArrowRight.pressed = false; break;
+            case 'ArrowLeft': keys.ArrowLeft.pressed = false; break;
+            case 'ArrowDown': enemy.isDucking = false; break;
+            case '/': enemy.isShielding = false; break;
+        }
+    });
+
+</script>
+</body>
+</html>
